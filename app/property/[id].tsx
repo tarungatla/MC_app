@@ -3,6 +3,8 @@ import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, Touchable
 import { useRoute } from '@react-navigation/native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import { DeviceMotion } from 'expo-sensors'
 
 interface Post {
   id: string;
@@ -27,6 +29,11 @@ interface Post {
   };
 }
 
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
 const PropertyDetailsScreen: React.FC = () => {
   const route = useRoute();
   const router = useRouter();
@@ -35,6 +42,11 @@ const PropertyDetailsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
+  const [propertyLocation, setPropertyLocation] = useState<Coordinates | null>(null);
+  const [distance, setDistance] = useState<string | null>(null);
+  const [isTiltDetectionEnabled, setIsTiltDetectionEnabled] = useState(true);
+  const [lastTiltTime, setLastTiltTime] = useState(0);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -61,33 +73,166 @@ const PropertyDetailsScreen: React.FC = () => {
     }
   }, [postId]);
 
-  const handlePhonePress = async () => {
-    if (post?.user?.phone) {
+
+  useEffect(() => {
+    let subscription: any = null;
+
+    const startTiltDetection = async () => {
       try {
-        // Remove any non-numeric characters from the phone number
-        // const phoneNumber = post.user.phone.replace(/\D/g, '');
-        const phoneNumber = "8450995973";
+        await DeviceMotion.isAvailableAsync();
+        DeviceMotion.setUpdateInterval(100); // Update every 100ms
         
-        // Check if device can handle telephone links
-        const canOpen = await Linking.canOpenURL(`tel:${phoneNumber}`);
-        
-        if (canOpen) {
-          await Linking.openURL(`tel:${phoneNumber}`);
-        } else {
-          Alert.alert(
-            "Error",
-            "Unable to open phone dialer. Please dial manually: " + post.user.phone
-          );
-        }
+        subscription = DeviceMotion.addListener(({ rotation }) => {
+          if (!isTiltDetectionEnabled || !post?.images || post.images.length <= 1) return;
+          
+          const now = Date.now();
+          if (now - lastTiltTime < 500) return; // Throttle to prevent rapid image changes
+          
+          // gamma is the rotation around the y-axis (left to right tilt)
+          const gamma = rotation?.gamma || 0;
+          
+          // Threshold for tilt detection - adjust for sensitivity
+          const tiltThreshold = 0.1;
+          
+          if (gamma > tiltThreshold) {
+            // Device tilted to the right - next image
+            if (currentImageIndex < post.images.length - 1) {
+              setCurrentImageIndex(prev => prev + 1);
+              setLastTiltTime(now);
+            }
+          } else if (gamma < -tiltThreshold) {
+            // Device tilted to the left - previous image
+            if (currentImageIndex > 0) {
+              setCurrentImageIndex(prev => prev - 1);
+              setLastTiltTime(now);
+            }
+          }
+        });
       } catch (error) {
-        console.error("Error opening phone dialer:", error);
+        console.error("Device motion not available:", error);
+      }
+    };
+
+    startTiltDetection();
+
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
+  }, [post, currentImageIndex, isTiltDetectionEnabled, lastTiltTime]);
+
+
+
+  const getLocationPermission = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'Please allow location access to see distance information.');
+      return false;
+    }
+    return true;
+  };
+
+  const getUserLocation = async () => {
+    try {
+      const hasPermission = await getLocationPermission();
+      if (!hasPermission) return;
+
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    } catch (error) {
+      console.error('Error getting user location:', error);
+    }
+  };
+
+  const getPropertyCoordinates = async (address: string) => {
+    try {
+      const encodedAddress = encodeURIComponent(address);
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}`,
+        {
+          headers: {
+            'User-Agent': 'Gatla Heights/1.0', // Replace with your app name and version
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && data[0]) {
+        setPropertyLocation({
+          latitude: parseFloat(data[0].lat),
+          longitude: parseFloat(data[0].lon),
+        });
+      }
+    } catch (error) {
+      console.error('Error geocoding address:', error);
+    }
+  };
+
+  const calculateDistance = (coord1: Coordinates, coord2: Coordinates) => { // haversine formula
+    const R = 6371; // Earth's radius in km
+    const dLat = (coord2.latitude - coord1.latitude) * (Math.PI / 180);  // Convert latitude to radians
+    const dLon = (coord2.longitude - coord1.longitude) * (Math.PI / 180); // Convert longitude to radians
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(coord1.latitude * (Math.PI / 180)) *
+      Math.cos(coord2.latitude * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    
+    if (distance < 1) {
+      return `${(distance * 1000).toFixed(0)} m`;
+    }
+    return `${distance.toFixed(1)} km`;
+  };
+
+  useEffect(() => {
+    getUserLocation();
+  }, []);
+
+  useEffect(() => {
+    if (post?.address && post?.city) {
+      const fullAddress = `${post.address}, ${post.city}`;
+      getPropertyCoordinates(fullAddress);
+    }
+  }, [post]);
+
+  useEffect(() => {
+    if (userLocation && propertyLocation) {
+      const dist = calculateDistance(userLocation, propertyLocation);
+      setDistance(dist);
+    }
+  }, [userLocation, propertyLocation]);
+
+  const handlePhonePress = async () => {
+    try {
+      const phoneNumber = "8450995973";
+      const canOpen = await Linking.canOpenURL(`tel:${phoneNumber}`);
+      
+      if (canOpen) {
+        await Linking.openURL(`tel:${phoneNumber}`);
+      } else {
         Alert.alert(
           "Error",
-          "Unable to open phone dialer. Please dial manually: " + post.user.phone
+          "Unable to open phone dialer. Please dial manually: " + post?.user.phone
         );
       }
-    } else {
-      Alert.alert("Contact Information", "Seller's phone number not available.");
+    } catch (error) {
+      console.error("Error opening phone dialer:", error);
+      Alert.alert(
+        "Error",
+        "Unable to open phone dialer. Please dial manually: " + post?.user.phone
+      );
     }
   };
 
@@ -117,6 +262,14 @@ const PropertyDetailsScreen: React.FC = () => {
     if (currentImageIndex > 0) {
       setCurrentImageIndex(prev => prev - 1);
     }
+  };
+
+  const toggleTiltDetection = () => {
+    setIsTiltDetectionEnabled(!isTiltDetectionEnabled);
+    Alert.alert(
+      "Tilt Navigation",
+      isTiltDetectionEnabled ? "Tilt navigation disabled" : "Tilt navigation enabled. Tilt your device left or right to navigate images."
+    );
   };
 
   if (loading) {
@@ -151,33 +304,42 @@ const PropertyDetailsScreen: React.FC = () => {
         }} 
       />
       <ScrollView style={styles.container}>
-        <View style={styles.imageContainer}>
+      <View style={styles.imageContainer}>
           {post.images && post.images.length > 0 ? (
             <>
               <Image source={{ uri: post.images[currentImageIndex] }} style={styles.image} />
-              {post.images.length > 1 && (
-                <View style={styles.imageNavigation}>
-                  <TouchableOpacity 
-                    style={[styles.navButton, currentImageIndex === 0 && styles.navButtonDisabled]} 
-                    onPress={previousImage}
-                    disabled={currentImageIndex === 0}
-                  >
-                    <Ionicons name="chevron-back" size={24} color="white" />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.navButton, currentImageIndex === post.images.length - 1 && styles.navButtonDisabled]} 
-                    onPress={nextImage}
-                    disabled={currentImageIndex === post.images.length - 1}
-                  >
-                    <Ionicons name="chevron-forward" size={24} color="white" />
-                  </TouchableOpacity>
-                </View>
-              )}
+              <View style={styles.imageNavigation}>
+                <TouchableOpacity 
+                  style={[styles.navButton, currentImageIndex === 0 && styles.navButtonDisabled]} 
+                  onPress={previousImage}
+                  disabled={currentImageIndex === 0}
+                >
+                  <Ionicons name="chevron-back" size={24} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.tiltToggleButton} 
+                  onPress={toggleTiltDetection}
+                >
+                  <Ionicons name={isTiltDetectionEnabled ? "phone-portrait" : "phone-portrait-outline"} size={20} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.navButton, currentImageIndex === post.images.length - 1 && styles.navButtonDisabled]} 
+                  onPress={nextImage}
+                  disabled={currentImageIndex === post.images.length - 1}
+                >
+                  <Ionicons name="chevron-forward" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.imageCounter}>
                 <Text style={styles.imageCounterText}>
                   {currentImageIndex + 1}/{post.images.length}
                 </Text>
               </View>
+              {isTiltDetectionEnabled && (
+                <View style={styles.tiltIndicator}>
+                  <Text style={styles.tiltIndicatorText}>Tilt to navigate</Text>
+                </View>
+              )}
             </>
           ) : (
             <View style={styles.noImage}>
@@ -186,17 +348,26 @@ const PropertyDetailsScreen: React.FC = () => {
             </View>
           )}
         </View>
-
         <View style={styles.contentContainer}>
           <View style={styles.header}>
             <Text style={styles.title}>{post.title}</Text>
-            <Text style={styles.price}>${post.price.toLocaleString()}</Text>
+            <Text style={styles.price}>₹{post.price.toLocaleString()}</Text>
           </View>
 
           <View style={styles.propertyInfo}>
             <TouchableOpacity style={styles.locationButton} onPress={handleLocationPress}>
-              <Ionicons name="location" size={20} color="#007AFF" />
-              <Text style={styles.address}>{`${post.address}, ${post.city}`}</Text>
+              <View style={styles.locationInfo}>
+                <View style={styles.addressContainer}>
+                  <Ionicons name="location" size={20} color="#007AFF" />
+                  <Text style={styles.address}>{`${post.address}, ${post.city}`}</Text>
+                </View>
+                {distance && (
+                  <View style={styles.distanceContainer}>
+                    <Ionicons name="navigate" size={16} color="#666" />
+                    <Text style={styles.distanceText}>{distance}</Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
 
             <View style={styles.featuresGrid}>
@@ -232,20 +403,12 @@ const PropertyDetailsScreen: React.FC = () => {
               <Text style={styles.sectionTitle}>Description</Text>
               <Text style={styles.descriptionText}>{post.postDetail.desc}</Text>
               
-              {(post.postDetail.utilities || post.postDetail.pet) && (
+              {post.postDetail.utilities && (
                 <View style={styles.additionalInfo}>
-                  {post.postDetail.utilities && (
-                    <View style={styles.infoItem}>
-                      <Ionicons name="flash-outline" size={20} color="#666" />
-                      <Text style={styles.infoText}>Utilities: {post.postDetail.utilities}</Text>
-                    </View>
-                  )}
-                  {post.postDetail.pet && (
-                    <View style={styles.infoItem}>
-                      <Ionicons name="paw-outline" size={20} color="#666" />
-                      <Text style={styles.infoText}>Pets: {post.postDetail.pet}</Text>
-                    </View>
-                  )}
+                  <View style={styles.infoItem}>
+                    <Ionicons name="flash-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>Utilities: {post.postDetail.utilities}</Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -378,14 +541,30 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   locationButton: {
+    marginBottom: 16,
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  addressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
   address: {
     marginLeft: 8,
     fontSize: 16,
     color: '#007AFF',
+  },
+  distanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginLeft: 28,
+  },
+  distanceText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
   },
   featuresGrid: {
     flexDirection: 'row',
@@ -478,6 +657,34 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     textDecorationLine: 'underline',
   },
+  tiltToggleButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 8,
+    alignSelf: 'center',
+  },
+  tiltIndicator: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 4,
+  },
+  tiltIndicatorText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
 });
 
 export default PropertyDetailsScreen;
+
+
+
+
+
+
+
+

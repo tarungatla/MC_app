@@ -36,7 +36,7 @@ export default function HomeScreen() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('http://192.168.208.185:8800/api/posts');
+      const response = await fetch('http://192.168.0.101:8800/api/posts');
       console.log(response)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

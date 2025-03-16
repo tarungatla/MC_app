@@ -12,8 +12,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { user } = useContext(AuthContext);
-  console.log("User data:", user); // Debugging log
-  console.log("User Type:", user?.userType); // Check if userType is properly retrieved
   const isSeller = user?.userType === "seller";
 
   return (
