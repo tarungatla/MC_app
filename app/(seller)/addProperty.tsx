@@ -48,15 +48,53 @@ const AddPropertyScreen: React.FC = () => {
   };
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      setPostData({ ...postData, images: [...postData.images, result.assets[0].uri] });
-    }
+    Alert.alert(
+      "Add Photo",
+      "Choose a photo from",
+      [
+        {
+          text: "Camera",
+          onPress: async () => {
+            // Request camera permissions
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Sorry, we need camera permissions to make this work!');
+              return;
+            }
+  
+            let result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [4, 3],
+              quality: 1,
+            });
+  
+            if (!result.canceled) {
+              setPostData({ ...postData, images: [...postData.images, result.assets[0].uri] });
+            }
+          }
+        },
+        {
+          text: "Gallery",
+          onPress: async () => {
+            let result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [4, 3],
+              quality: 1,
+            });
+  
+            if (!result.canceled) {
+              setPostData({ ...postData, images: [...postData.images, result.assets[0].uri] });
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const removeImage = (index: number) => {
