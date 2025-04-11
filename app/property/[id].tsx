@@ -5,6 +5,8 @@ import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { DeviceMotion } from 'expo-sensors'
+import { API_URL } from '../lib/config';
+import QRCode from "react-native-qrcode-svg";
 
 interface Post {
   id: string;
@@ -51,7 +53,7 @@ const PropertyDetailsScreen: React.FC = () => {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const response = await fetch(`http:/192.168.0.101:8800/api/posts/${postId}`);
+        const response = await fetch(`${API_URL}/api/posts/${postId}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -411,6 +413,9 @@ const PropertyDetailsScreen: React.FC = () => {
                   </View>
                 </View>
               )}
+              <View>
+                    <QRCode value={JSON.stringify(post)} size={200} />
+              </View>
             </View>
           )}
 
@@ -431,6 +436,8 @@ const PropertyDetailsScreen: React.FC = () => {
                   <Text style={styles.callButtonText}>Call Now</Text>
                 </TouchableOpacity>
               )}
+
+              
             </View>
           </View>
         </View>

@@ -4,6 +4,7 @@ import { AuthContext } from '../lib/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { Picker as RNPicker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+import { API_URL } from '../lib/config';
 
 interface PostData {
   title: string;
@@ -111,7 +112,7 @@ const AddPropertyScreen: React.FC = () => {
 
     try {
       setUploading(true);
-      const response = await fetch('http://192.168.0.101:8800/api/posts', {
+      const response = await fetch(`${API_URL}/api/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

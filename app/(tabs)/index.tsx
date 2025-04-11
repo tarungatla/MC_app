@@ -16,6 +16,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { Link } from 'expo-router';
 import { PropertyCard } from '@/components/PropertyCard';
 import { Feather } from '@expo/vector-icons';
+import { API_URL } from '../lib/config';
 
 interface Post {
   id: string;
@@ -36,7 +37,7 @@ export default function HomeScreen() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('http://192.168.0.101:8800/api/posts');
+      const response = await fetch(`${API_URL}/api/posts`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -62,10 +63,7 @@ export default function HomeScreen() {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.locationContainer}>
-        <Feather name="map-pin" size={20} color="#666" />
-        <Text style={styles.locationText}>Current Location</Text>
-      </View>
+      
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Feather name="search" size={20} color="#666" />
