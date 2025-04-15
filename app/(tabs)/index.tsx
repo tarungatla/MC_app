@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { 
-  Image, 
   StyleSheet, 
   Platform, 
   View, 
@@ -13,65 +12,97 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
-import { Link } from 'expo-router';
 import { PropertyCard } from '@/components/PropertyCard';
 import { Feather } from '@expo/vector-icons';
 import { API_URL } from '../lib/config';
+import { useDataFetching } from '@/hooks/useDataFetching';
+import { debounce, throttle } from '@/app/lib/backgroundTasks';
 
 interface Post {
   id: string;
   title: string;
   price: number;
+  city: string;
+  images: string[];
+  category?: string;
   // ... other post properties
 }
 
 export default function HomeScreen() {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
 
   const categories = ['All', 'House', 'Apartment', 'Condo', 'Villa'];
 
-  const fetchPosts = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/posts`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setPosts(data);
-    } catch (err: any) {
-      console.error("Error fetching posts:", err);
-      setError(err.message || "Failed to fetch properties.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  // Use our custom hook for data fetching with caching and pagination
+  const {
+    data: posts,
+    loading,
+    error,
+    refreshing,
+    loadingMore,
+    hasMore,
+    refresh,
+    loadMore
+  } = useDataFetching<Post>(`${API_URL}/api/posts`, {
+    cacheKey: 'cached_posts',
+    cacheExpiryTime: 5 * 60 * 1000, // 5 minutes
+    pageSize: 10,
+    params: {
+      category: selectedCategory !== 'All' ? selectedCategory : ''
     }
+  });
+
+  // Debounce search input to prevent excessive filtering
+  const debouncedSetSearchQuery = useCallback(
+    debounce((value: string) => {
+      setSearchQuery(value);
+    }, 300),
+    []
+  );
+
+  // Handle search input changes
+  const handleSearchChange = (text: string) => {
+    // Update local state immediately for responsive UI
+    setLocalSearchQuery(text);
+    // Debounce the actual filtering
+    debouncedSetSearchQuery(text);
   };
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  // Throttle category changes to prevent excessive API calls
+  const throttledSetCategory = useCallback(
+    throttle((category: string) => {
+      setSelectedCategory(category);
+    }, 500),
+    []
+  );
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    fetchPosts();
-  }, []);
+  // Handle category selection
+  const handleCategorySelect = (category: string) => {
+    throttledSetCategory(category);
+  };
+
+  // Memoize filtered posts to prevent recalculation on every render
+  const filteredPosts = useMemo(() => {
+    if (!searchQuery) return posts;
+    
+    return posts.filter(post => {
+      return post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+             post.city.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [posts, searchQuery]);
 
   const renderHeader = () => (
     <View style={styles.header}>
-      
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Feather name="search" size={20} color="#666" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search properties..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+            value={localSearchQuery}
+            onChangeText={handleSearchChange}
             placeholderTextColor="#666"
           />
         </View>
@@ -90,7 +121,7 @@ export default function HomeScreen() {
               styles.categoryButton,
               selectedCategory === item && styles.categoryButtonActive
             ]}
-            onPress={() => setSelectedCategory(item)}
+            onPress={() => handleCategorySelect(item)}
           >
             <Text 
               style={[
@@ -107,13 +138,23 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderPost = ({ item }: { item: Post }) => (
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#0066FF" />
+      </View>
+    );
+  };
+
+  const renderPost = useCallback(({ item }: { item: Post }) => (
     <View style={styles.cardWrapper}>
       <PropertyCard post={item} />
     </View>
-  );
+  ), []);
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0066FF" />
@@ -125,7 +166,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchPosts}>
+        <TouchableOpacity style={styles.retryButton} onPress={refresh}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -136,16 +177,23 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
         <FlatList
-          data={posts}
+          data={filteredPosts}
           renderItem={renderPost}
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={styles.flatListContent}
           ListHeaderComponent={renderHeader}
+          ListFooterComponent={renderFooter}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} />
           }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          initialNumToRender={6}
         />
       </ThemedView>
     </SafeAreaView>
@@ -257,5 +305,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
 });

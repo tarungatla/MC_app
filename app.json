@@ -22,7 +22,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA"
       ],
-      "package": "com.tarun_gatla.learnexpo"
+      "package": "com.tarungatla.learnexpo"
     },
     "web": {
       "bundler": "metro",

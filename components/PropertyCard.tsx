@@ -1,25 +1,37 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { Link } from 'expo-router';
+import React, { memo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 
-export const PropertyCard = ({ post }) => {
+// Memoize the component to prevent unnecessary re-renders
+export const PropertyCard = memo(({ post }) => {
   const router = useRouter();
 
   return (
     <Pressable onPress={() => router.push(`/property/${post.id}`)}>
       <View style={styles.card}>
-        <Image source={{ uri: post.images[0] }} style={styles.image} />
+        <Image 
+          source={{ uri: post.images[0] }} 
+          style={styles.image} 
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
+          placeholder={require('@expo/snack-static/react-native-logo.png')}
+        />
         <View style={styles.textContainer}>
-          <Text style={styles.title}>{post.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>{post.title}</Text>
           <Text style={styles.price}>₹{post.price}</Text>
-          <Text style={styles.location}>{post.city}</Text>
+          <Text style={styles.location} numberOfLines={1}>{post.city}</Text>
         </View>
       </View>
     </Pressable>
   );
-};
+});
+
+// Add display name for debugging
+PropertyCard.displayName = 'PropertyCard';
+
 const styles = StyleSheet.create({
   card: {
     flex: 0.5, // Two cards per row
@@ -36,7 +48,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 150,
-    resizeMode: 'cover',
   },
   textContainer: {
     padding: 10,

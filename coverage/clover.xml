@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1744280797931" clover="3.2.0">
-  <project timestamp="1744280797932" name="All files">
-    <metrics statements="520" coveredstatements="26" conditionals="279" coveredconditionals="9" methods="127" coveredmethods="2" elements="926" coveredelements="37" complexity="0" loc="520" ncloc="520" packages="13" files="36" classes="36"/>
+<coverage generated="1744727947135" clover="3.2.0">
+  <project timestamp="1744727947135" name="All files">
+    <metrics statements="520" coveredstatements="15" conditionals="279" coveredconditionals="4" methods="127" coveredmethods="1" elements="926" coveredelements="20" complexity="0" loc="520" ncloc="520" packages="13" files="36" classes="36"/>
     <package name="learn-expo">
       <metrics statements="1" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
       <file name="expo-env.d.ts" path="D:\learn-expo\expo-env.d.ts">
@@ -19,7 +19,7 @@
       </file>
     </package>
     <package name="learn-expo.app">
-      <metrics statements="58" coveredstatements="23" conditionals="42" coveredconditionals="9" methods="10" coveredmethods="2"/>
+      <metrics statements="58" coveredstatements="12" conditionals="42" coveredconditionals="4" methods="10" coveredmethods="1"/>
       <file name="+not-found.tsx" path="D:\learn-expo\app\+not-found.tsx">
         <metrics statements="2" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
         <line num="8" count="0" type="stmt"/>
@@ -53,35 +53,35 @@
         <line num="56" count="0" type="stmt"/>
       </file>
       <file name="login.tsx" path="D:\learn-expo\app\login.tsx">
-        <metrics statements="32" coveredstatements="23" conditionals="28" coveredconditionals="9" methods="5" coveredmethods="2"/>
+        <metrics statements="32" coveredstatements="12" conditionals="28" coveredconditionals="4" methods="5" coveredmethods="1"/>
         <line num="17" count="1" type="stmt"/>
-        <line num="18" count="3" type="stmt"/>
-        <line num="19" count="3" type="stmt"/>
-        <line num="20" count="3" type="stmt"/>
-        <line num="21" count="3" type="stmt"/>
-        <line num="22" count="3" type="stmt"/>
-        <line num="23" count="3" type="stmt"/>
-        <line num="24" count="3" type="stmt"/>
-        <line num="25" count="3" type="stmt"/>
-        <line num="27" count="3" type="stmt"/>
-        <line num="28" count="1" type="cond" truecount="1" falsecount="1"/>
-        <line num="29" count="1" type="cond" truecount="1" falsecount="1"/>
-        <line num="33" count="1" type="stmt"/>
-        <line num="34" count="1" type="stmt"/>
-        <line num="45" count="1" type="stmt"/>
-        <line num="47" count="1" type="cond" truecount="1" falsecount="1"/>
-        <line num="48" count="1" type="cond" truecount="1" falsecount="1"/>
-        <line num="49" count="1" type="stmt"/>
-        <line num="50" count="1" type="stmt"/>
-        <line num="51" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="18" count="8" type="stmt"/>
+        <line num="19" count="8" type="stmt"/>
+        <line num="20" count="8" type="stmt"/>
+        <line num="21" count="8" type="stmt"/>
+        <line num="22" count="8" type="stmt"/>
+        <line num="23" count="8" type="stmt"/>
+        <line num="24" count="8" type="stmt"/>
+        <line num="25" count="8" type="stmt"/>
+        <line num="27" count="8" type="stmt"/>
+        <line num="28" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="29" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+        <line num="45" count="0" type="stmt"/>
+        <line num="47" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="48" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="49" count="0" type="stmt"/>
+        <line num="50" count="0" type="stmt"/>
+        <line num="51" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="52" count="0" type="stmt"/>
-        <line num="53" count="1" type="stmt"/>
+        <line num="53" count="0" type="stmt"/>
         <line num="55" count="0" type="stmt"/>
         <line num="56" count="0" type="stmt"/>
         <line num="59" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="62" count="0" type="stmt"/>
         <line num="63" count="0" type="stmt"/>
-        <line num="67" count="3" type="stmt"/>
+        <line num="67" count="8" type="stmt"/>
         <line num="103" count="0" type="stmt"/>
         <line num="115" count="0" type="stmt"/>
         <line num="141" count="0" type="stmt"/>
@@ -349,7 +349,7 @@
       </file>
       <file name="config.tsx" path="D:\learn-expo\app\lib\config.tsx">
         <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
-        <line num="4" count="1" type="stmt"/>
+        <line num="5" count="1" type="stmt"/>
       </file>
     </package>
     <package name="learn-expo.app.property">
